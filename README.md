@@ -152,10 +152,10 @@ Content-Type: application/json
 
 ## Testing
 
-The project includes basic API tests in `tests/test_api.py`. You can run these tests using `pytest`:
+The project includes API tests in `tests/test_api.py`, queue tests in `tests/test_queue.py`, and respond tests in `tests/test_respond.py`. You can run all tests using `pytest`:
 
 ```bash
-pytest tests/test_api.py
+pytest tests
 ```
 
 ## Troubleshooting
