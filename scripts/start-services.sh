@@ -19,7 +19,7 @@ nohup python3 src/worker.py &
 
 # Start queue service
 echo "Starting queue service"
-FLASK_APP=src/queue.py FLASK_ENV=production QUEUE_PORT=${QUEUE_PORT:-5000} nohup flask run --host=0.0.0.0 --port=${QUEUE_PORT} &
+FLASK_APP=src/api_queue.py FLASK_ENV=production QUEUE_PORT=${QUEUE_PORT:-5000} nohup flask run --host=0.0.0.0 --port=${QUEUE_PORT} &
 
 # Start response service
 echo "Starting response service"

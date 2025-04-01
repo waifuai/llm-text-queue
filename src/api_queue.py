@@ -4,6 +4,7 @@
 import subprocess
 import requests
 import logging
+import redis # Added missing import
 
 from flask import Flask, request, jsonify
 from rq import Queue

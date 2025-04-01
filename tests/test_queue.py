@@ -1,14 +1,16 @@
 import pytest
 import requests
 from unittest.mock import patch
-from src import queue
-from src import config
+from src import api_queue as queue # Renamed import
+# from src import config # No longer needed for REDIS_URL
 import redis
-from rq import Queue, Connection
+import fakeredis # Import fakeredis
+from rq import Queue
 
 @pytest.fixture
 def redis_conn():
-    return redis.Redis.from_url(config.REDIS_URL)
+    # Use fakeredis for testing instead of a real Redis connection
+    return fakeredis.FakeStrictRedis()
 
 @pytest.fixture
 def test_queue(redis_conn):
@@ -31,7 +33,7 @@ def test_test_worker():
     assert queue.test_worker() == "test worker"
 
 def test_check_services_health_success(redis_conn):
-    with patch('src.queue.conn.ping') as mock_ping, \
+    with patch('src.api_queue.conn.ping') as mock_ping, \
          patch('requests.get') as mock_get, \
          patch('rq.Queue.enqueue_call') as mock_enqueue_call:
         mock_ping.return_value = True
@@ -40,11 +42,11 @@ def test_check_services_health_success(redis_conn):
         assert queue.check_services_health() == True
 
 def test_check_services_health_redis_failure(redis_conn):
-    with patch('src.queue.conn.ping', side_effect=redis.exceptions.ConnectionError("Redis unavailable")):
+    with patch('src.api_queue.conn.ping', side_effect=redis.exceptions.ConnectionError("Redis unavailable")):
         assert queue.check_services_health() == False
 
 def test_check_services_health_gpu_failure(redis_conn):
-    with patch('src.queue.conn.ping') as mock_ping, \
+    with patch('src.api_queue.conn.ping') as mock_ping, \
          patch('requests.get') as mock_get:
         mock_ping.return_value = True
         mock_get.side_effect = requests.exceptions.RequestException("GPU service unavailable")
@@ -52,10 +54,11 @@ def test_check_services_health_gpu_failure(redis_conn):
 
 def test_queueing_mechanism(redis_conn):
     q = Queue(connection=redis_conn)
-    with patch('src.queue.call_predict_response') as mock_call_predict_response:
-        mock_call_predict_response.return_value = "test response"
-        job = q.enqueue(queue.call_predict_response, 'test prompt')
-        assert job.result == None
-        # The following line would normally trigger the worker to process the job, but we are not running the worker in this test
-        # result = job.result
-        # assert result == "test response"
+    # Test enqueueing a simple, pickleable function to verify connection
+    # No need to patch call_predict_response here as we are not calling it
+    # We use test_worker which is defined in api_queue and known to be simple
+    job = q.enqueue(queue.test_worker) # Enqueue a simple function
+    assert job.id is not None # Check that the job was created successfully
+    # The following line would normally trigger the worker to process the job, but we are not running the worker in this test
+    # result = job.result
+    # assert result == "test response"

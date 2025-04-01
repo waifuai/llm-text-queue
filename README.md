@@ -29,17 +29,17 @@ This project provides a simple and efficient text generation service using a pre
 The project consists of three main components:
 
 *   **`respond.py`**: This is the core text generation service. It loads the distilgpt2 model and handles requests to generate text. It exposes a `/generate` endpoint for POST requests containing the prompt.
-*   **`queue.py`**: This service acts as a gateway for incoming requests. It receives prompts, queues them using Redis, and then forwards them to `respond.py` for processing. It also exposes a `/generate` endpoint.
+*   **`api_queue.py`**: This service acts as a gateway for incoming requests. It receives prompts, queues them using Redis, and then forwards them to `respond.py` for processing. It also exposes a `/generate` endpoint.
 *   **`worker.py`**: This is a Redis worker that listens for jobs on the queue and executes them. This allows `respond.py` to handle multiple requests concurrently without blocking.
 
 The flow of a request is as follows:
 
-1.  A client sends a POST request to `/generate` on `queue.py`.
-2.  `queue.py` adds the request to a Redis queue.
+1.  A client sends a POST request to `/generate` on `api_queue.py`.
+2.  `api_queue.py` adds the request to a Redis queue.
 3.  `worker.py` picks up the request from the queue.
-4.  `worker.py` calls the `call_predict_response` function in `queue.py`, which sends a POST request to `/generate` on `respond.py`.
-5.  `respond.py` generates the text and returns it to `queue.py` via the worker.
-6.  `queue.py` returns the generated text to the client.
+4.  `worker.py` calls the `call_predict_response` function in `api_queue.py`, which sends a POST request to `/generate` on `respond.py`.
+5.  `respond.py` generates the text and returns it to `api_queue.py` via the worker.
+6.  `api_queue.py` returns the generated text to the client.
 
 ## Prerequisites
 
@@ -162,7 +162,7 @@ pytest tests
 
 *   **Error: "Missing 'prompt' parameter"**: Make sure you are sending a JSON payload with a `prompt` field in your POST request to `/generate`.
 *   **Error: "Error calling GPU service"**: Ensure that the `respond.py` service is running and accessible at the configured `GPU_SERVICE_URL`.
-*   **Error: "Service unavailable"**: Check if Redis server, worker, queue and respond services are running.
+*   **Error: "Service unavailable"**: Check if Redis server, worker, API queue (`api_queue.py`) and respond services are running.
 *   **If encountering CUDA errors:** Ensure your CUDA drivers and toolkit are correctly installed and compatible with your PyTorch version.
 
 ## Contributing
