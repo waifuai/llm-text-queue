@@ -1,11 +1,10 @@
 flask
-transformers
-torch # Ensure this version is compatible with your CUDA setup if using GPU
 requests
 redis
-rq # Added missing dependency
+rq
 pytest
 six
-huggingface-hub # Added explicitly to help resolve import issues
 pytest-flask # For Flask test client
 fakeredis # For mocking Redis in tests
+google-generativeai
+python-dotenv

@@ -1,79 +1,73 @@
 # src/respond.py
 # This file contains the core chatbot logic. It loads the distilgpt2 model, processes incoming prompts, and generates responses.
 
-from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
-import torch
+import os
+import google.generativeai as genai
 from flask import Flask, request, jsonify
 import logging
+from dotenv import load_dotenv
 
-from config import MODEL_PATH, MAX_NEW_TOKENS
+# Load environment variables from .env file
+load_dotenv()
+
+# Import configuration (MAX_NEW_TOKENS might be removed or adapted later)
+from config import MAX_NEW_TOKENS # Keep for now, might adjust usage
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-device = 0 if torch.cuda.is_available() else -1
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
-if device >= 0:
-    model = model.to(device).eval()
+# Configure Gemini API
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    logging.error("GEMINI_API_KEY environment variable not set.")
+    # Optionally, raise an error or exit if the key is essential
+    # raise ValueError("Missing GEMINI_API_KEY")
+    gemini_model = None # Indicate model is unavailable
+else:
+    try:
+        genai.configure(api_key=api_key)
+        gemini_model = genai.GenerativeModel('gemini-2.5-flash-preview-04-17')
+        logging.info("Gemini API configured successfully.")
+    except Exception as e:
+        logging.error(f"Error configuring Gemini API: {e}")
+        gemini_model = None
 
-generator = pipeline("text-generation", model=model, tokenizer=tokenizer, device=device)
-max_new_tokens = MAX_NEW_TOKENS
+# MAX_NEW_TOKENS from config might be used to set generation config later if needed
+# generation_config = genai.types.GenerationConfig(max_output_tokens=MAX_NEW_TOKENS)
 
-# This function generates a suffix for a given prompt using the pre-trained language model.
-def generate_suffix(prompt: str):
+# This function predicts the response for a given prompt using the Gemini API.
+def predict_response(prompt: str):
     """
-    Generates a suffix for a given prompt using the pre-trained language model.
+    Generates a response for a given prompt using the configured Gemini model.
 
     Args:
-        prompt: The input prompt.
+        prompt: The input prompt string.
 
     Returns:
-        The generated suffix, or an empty string if an error occurs.
+        The generated text response, or an error message string if generation fails.
     """
-    input_ids = tokenizer(prompt, return_tensors="pt").input_ids
-    if device >= 0:
-        input_ids = input_ids.to(device)
+    logging.info(f"Received prompt: {prompt}")
+    if not gemini_model:
+        logging.error("Gemini model is not available.")
+        return "Error: AI model not configured."
 
     try:
-        generation_result = generator(
-            prompt,
-            do_sample=True,
-            min_length=len(prompt),
-            max_new_tokens=max_new_tokens,
-            num_return_sequences=1,
-        )
-        generated_text = generation_result[0]['generated_text']
-        suffix = generated_text[len(prompt):]
-        return suffix
-    except RuntimeError as e:
-        logging.error(f"RuntimeError in generate_suffix: {e}")
-        return ""
-    finally:
-        if device >= 0:
-            torch.cuda.empty_cache()
+        # TODO: Add safety_settings and generation_config if needed
+        # generation_config = genai.types.GenerationConfig(max_output_tokens=MAX_NEW_TOKENS)
+        response = gemini_model.generate_content(prompt)
+        # Check for potential blocks or errors in the response
+        if not response.candidates or not response.candidates[0].content.parts:
+             logging.warning(f"Gemini response blocked or empty. Finish reason: {response.prompt_feedback.block_reason if response.prompt_feedback else 'N/A'}")
+             # Consider returning a specific message or the default response
+             return "AI response generation failed or was blocked."
 
-# This function generates a waifu reply by iteratively generating suffixes and combining them.
-def waifu_reply(prompt: str):
-    response = ""
-    for _ in range(10):
-        suffix = generate_suffix(prompt)
-        if not suffix:
-            break
-        lines = suffix.split('\n')
-        first_line = lines[0].split('"')[0]
-        response += first_line
-        prompt += first_line
-        if len(lines) > 1 or '"' in suffix:
-            break
-    return response
-
-# This function predicts the response for a given prompt using the waifu_reply function.
-def predict_response(prompt):
-    logging.info(f"Prompt: {prompt}")
-    response = waifu_reply(prompt)
-    logging.info(f"Response: {response}")
-    return response
+        generated_text = response.text
+        logging.info(f"Generated response: {generated_text}")
+        return generated_text
+    except Exception as e:
+        logging.error(f"Error during Gemini API call: {e}")
+        # Consider returning a more specific error or the default response
+        return "Error generating AI response."
 
 # This endpoint generates text based on the provided prompt.
 @app.route('/generate', methods=['POST'])
