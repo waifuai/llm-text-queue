@@ -1,6 +1,6 @@
-# llm-text-queue-gpu
+# llm-text-queue
 
-This project provides a simple and efficient text generation service using a pre-trained language model (distilgpt2) and a Redis queue for handling requests. It consists of a Flask-based API that exposes endpoints for generating text and checking service health. The service is designed to be run on a GPU for faster inference.
+This project provides a simple and efficient text generation service using the Gemini API and a Redis queue for handling requests. It consists of a Flask-based API that exposes endpoints for generating text and checking service health.
 
 ## Table of Contents
 
@@ -18,17 +18,16 @@ This project provides a simple and efficient text generation service using a pre
 
 ## Features
 
-*   Text generation using the distilgpt2 language model.
+*   Text generation using the Gemini API.
 *   Request queuing using Redis for handling concurrent requests.
 *   Flask API for easy interaction.
-*   GPU support for faster inference.
 *   Health check endpoint for monitoring service status.
 
 ## Architecture
 
 The project consists of three main components:
 
-*   **`respond.py`**: This is the core text generation service. It loads the distilgpt2 model and handles requests to generate text. It exposes a `/generate` endpoint for POST requests containing the prompt.
+*   **`respond.py`**: This is the core text generation service. It uses the Gemini API to handle requests to generate text. It exposes a `/generate` endpoint for POST requests containing the prompt.
 *   **`api_queue.py`**: This service acts as a gateway for incoming requests. It receives prompts, queues them using Redis, and then forwards them to `respond.py` for processing. It also exposes a `/generate` endpoint.
 *   **`worker.py`**: This is a Redis worker that listens for jobs on the queue and executes them. This allows `respond.py` to handle multiple requests concurrently without blocking.
 
@@ -37,8 +36,8 @@ The flow of a request is as follows:
 1.  A client sends a POST request to `/generate` on `api_queue.py`.
 2.  `api_queue.py` adds the request to a Redis queue.
 3.  `worker.py` picks up the request from the queue.
-4.  `worker.py` calls the `call_predict_response` function in `api_queue.py`, which sends a POST request to `/generate` on `respond.py`.
-5.  `respond.py` generates the text and returns it to `api_queue.py` via the worker.
+4.  `worker.py` calls the `call_predict_response` function, which sends a POST request to `/generate` on `respond.py` (via the worker).
+5.  `respond.py` generates the text using the Gemini API and returns it to `api_queue.py` via the worker.
 6.  `api_queue.py` returns the generated text to the client.
 
 ## Prerequisites
@@ -46,9 +45,10 @@ The flow of a request is as follows:
 *   Python 3.7+
 *   pip
 *   Redis server (installed and running)
-*   A CUDA-enabled GPU (optional, but recommended for performance)
+*   A Gemini API Key
 
 You can find instructions for installing Redis on your system on the official Redis website: [https://redis.io/docs/getting-started/](https://redis.io/docs/getting-started/)
+
 
 ## Installation
 
@@ -89,12 +89,11 @@ You can find instructions for installing Redis on your system on the official Re
 
 2.  Modify the `.env` file to set the appropriate values for your environment. The following environment variables are available:
 
-    *   `MODEL_PATH`: The path to the pre-trained language model (default: `distilgpt2`).
-    *   `GPU_SERVICE_URL`: The URL of the GPU service (default: `http://localhost:5001`).
+    *   `GEMINI_API_KEY`: Your Google Gemini API key.
     *   `REDIS_URL`: The URL of the Redis server (default: `redis://localhost:6379`).
     *   `QUEUE_PORT`: The port for the queue service (default: `5000`).
     *   `RESPOND_PORT`: The port for the response service (default: `5001`).
-    *   `MAX_NEW_TOKENS`: The maximum number of new tokens to generate (default: 20).
+    *   `MAX_NEW_TOKENS`: The maximum number of new tokens for Gemini generation (default: 150).
 
     **Note:** The `.env` file should not be committed to the repository for security reasons.
 
@@ -161,9 +160,8 @@ pytest tests
 ## Troubleshooting
 
 *   **Error: "Missing 'prompt' parameter"**: Make sure you are sending a JSON payload with a `prompt` field in your POST request to `/generate`.
-*   **Error: "Error calling GPU service"**: Ensure that the `respond.py` service is running and accessible at the configured `GPU_SERVICE_URL`.
 *   **Error: "Service unavailable"**: Check if Redis server, worker, API queue (`api_queue.py`) and respond services are running.
-*   **If encountering CUDA errors:** Ensure your CUDA drivers and toolkit are correctly installed and compatible with your PyTorch version.
+*   **Error: "Error generating AI response."**: This may indicate an issue with the Gemini API call. Check your `GEMINI_API_KEY` in the `.env` file and ensure there are no network issues.
 
 ## Contributing
 
