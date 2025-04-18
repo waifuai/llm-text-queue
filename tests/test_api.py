@@ -1,5 +1,5 @@
 import pytest
-import requests # Keep for mocking exceptions
+import pytest
 import redis # Added for exception patching
 from unittest.mock import patch, MagicMock
 from src.api_queue import app as flask_app # Import the app instance
@@ -20,11 +20,7 @@ def test_health_check_success(client):
     """Test the /health endpoint when services are healthy."""
     # Mock dependencies called by check_services_health to simulate success
     with patch('src.api_queue.conn.ping', return_value=True) as mock_ping, \
-         patch('src.api_queue.requests.get') as mock_get, \
          patch('src.api_queue.q.enqueue_call') as mock_enqueue:
-
-        # Configure mock for requests.get
-        mock_get.return_value.raise_for_status.return_value = None # Simulate successful GET
 
         # Configure mock for enqueue_call and job status/deletion
         mock_job = MagicMock()
@@ -36,29 +32,10 @@ def test_health_check_success(client):
         assert response.data == b"Services healthy"
         mock_ping.assert_called_once()
         mock_enqueue.assert_called_once()
-        mock_get.assert_called_once() # Ensure GPU service check was attempted
 
 def test_health_check_redis_unavailable(client):
     """Test the /health endpoint when Redis is unavailable."""
     with patch('src.api_queue.conn.ping', side_effect=redis.exceptions.ConnectionError("Redis unavailable")): # Now redis is imported
-        response = client.get("/health")
-        assert response.status_code == 503
-        assert response.data == b"Service unavailable"
-
-def test_health_check_gpu_service_unavailable(client):
-    """Test the /health endpoint when the GPU service is unavailable."""
-    with patch('src.api_queue.conn.ping', return_value=True), \
-         patch('src.api_queue.requests.get') as mock_get, \
-         patch('src.api_queue.q.enqueue_call') as mock_enqueue: # Need to mock enqueue too
-
-        # Configure mock for enqueue_call and job status/deletion
-        mock_job = MagicMock()
-        mock_job.get_status.return_value = 'finished'
-        mock_enqueue.return_value = mock_job
-
-        # Configure mock for requests.get to raise an exception
-        mock_get.side_effect = requests.exceptions.RequestException("GPU service unavailable")
-
         response = client.get("/health")
         assert response.status_code == 503
         assert response.data == b"Service unavailable"

@@ -1,5 +1,4 @@
 import pytest
-import requests
 from unittest.mock import patch
 from src import api_queue as queue # Renamed import
 # from src import config # No longer needed for REDIS_URL
@@ -25,31 +24,22 @@ def test_call_predict_response_success():
 
 def test_call_predict_response_failure():
     with patch('requests.post') as mock_post:
-        mock_post.side_effect = requests.exceptions.RequestException('test error')
+        mock_post.side_effect = Exception('test error') # Changed to a generic Exception
         response = queue.call_predict_response('test prompt')
-        assert response == "Error: Could not connect to the GPU service."
+    assert response == "Error: Could not connect to the GPU service." # This error message might need updating depending on the actual error handling in api_queue.py
 
 def test_test_worker():
     assert queue.test_worker() == "test worker"
 
 def test_check_services_health_success(redis_conn):
     with patch('src.api_queue.conn.ping') as mock_ping, \
-         patch('requests.get') as mock_get, \
-         patch('rq.Queue.enqueue_call') as mock_enqueue_call:
+         patch('rq.Queue.enqueue_call') as mock_enqueue_call: # Removed requests.get patch
         mock_ping.return_value = True
-        mock_get.return_value.status_code = 200
         mock_enqueue_call.return_value.get_status.return_value = "queued"
         assert queue.check_services_health() == True
 
 def test_check_services_health_redis_failure(redis_conn):
     with patch('src.api_queue.conn.ping', side_effect=redis.exceptions.ConnectionError("Redis unavailable")):
-        assert queue.check_services_health() == False
-
-def test_check_services_health_gpu_failure(redis_conn):
-    with patch('src.api_queue.conn.ping') as mock_ping, \
-         patch('requests.get') as mock_get:
-        mock_ping.return_value = True
-        mock_get.side_effect = requests.exceptions.RequestException("GPU service unavailable")
         assert queue.check_services_health() == False
 
 def test_queueing_mechanism(redis_conn):

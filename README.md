@@ -18,7 +18,7 @@ This project provides a simple and efficient text generation service using the G
 
 ## Features
 
-*   Text generation using the Gemini API.
+*   Text generation using the Gemini API (`gemini-2.5-flash-preview-04-17` model).
 *   Request queuing using Redis for handling concurrent requests.
 *   Flask API for easy interaction.
 *   Health check endpoint for monitoring service status.
@@ -43,12 +43,11 @@ The flow of a request is as follows:
 ## Prerequisites
 
 *   Python 3.7+
-*   pip
+*   uv
 *   Redis server (installed and running)
-*   A Gemini API Key
+*   A Gemini API Key saved in `~/.api-gemini`
 
 You can find instructions for installing Redis on your system on the official Redis website: [https://redis.io/docs/getting-started/](https://redis.io/docs/getting-started/)
-
 
 ## Installation
 
@@ -59,21 +58,21 @@ You can find instructions for installing Redis on your system on the official Re
     cd llm-text-queue-gpu
     ```
 
-2.  Create and activate a virtual environment:
+2.  Create and activate a virtual environment using uv:
 
     ```bash
-    python3 -m venv venv
-    source venv/bin/activate  # On Linux/macOS
-    venv\Scripts\activate  # On Windows
+    python -m uv venv .venv
+    source .venv/bin/activate  # On Linux/macOS
+    .venv\Scripts\activate  # On Windows
     ```
 
-3.  Install dependencies:
+3.  Install dependencies using uv:
 
     ```bash
-    pip install --user -r requirements.txt
+    .venv/Scripts/python.exe -m uv pip install -e .[test]
     ```
 
-    Alternatively, you can run the `setup.sh` script, which performs steps 2 and 3:
+    Alternatively, you can run the `src/setup.sh` script, which performs steps 2 and 3:
 
     ```bash
     ./src/setup.sh
@@ -81,15 +80,16 @@ You can find instructions for installing Redis on your system on the official Re
 
 ## Configuration
 
-1.  Copy the `.env.example` file to `.env`:
+1.  Create a `.env` file by copying `.env.example`:
 
     ```bash
     cp .env.example .env
     ```
 
-2.  Modify the `.env` file to set the appropriate values for your environment. The following environment variables are available:
+2.  Ensure your Gemini API key is saved in a file named `.api-gemini` in your home directory (`~`).
 
-    *   `GEMINI_API_KEY`: Your Google Gemini API key.
+3.  Modify the `.env` file to set the appropriate values for your environment. The following environment variables are available:
+
     *   `REDIS_URL`: The URL of the Redis server (default: `redis://localhost:6379`).
     *   `QUEUE_PORT`: The port for the queue service (default: `5000`).
     *   `RESPOND_PORT`: The port for the response service (default: `5001`).
@@ -151,17 +151,17 @@ Content-Type: application/json
 
 ## Testing
 
-The project includes API tests in `tests/test_api.py`, queue tests in `tests/test_queue.py`, and respond tests in `tests/test_respond.py`. You can run all tests using `pytest`:
+The project includes API tests in `tests/test_api.py`, queue tests in `tests/test_queue.py`, and respond tests in `tests/test_respond.py`. You can run all tests using `pytest` with the virtual environment:
 
 ```bash
-pytest tests
+.venv/Scripts/python.exe -m pytest tests
 ```
 
 ## Troubleshooting
 
 *   **Error: "Missing 'prompt' parameter"**: Make sure you are sending a JSON payload with a `prompt` field in your POST request to `/generate`.
 *   **Error: "Service unavailable"**: Check if Redis server, worker, API queue (`api_queue.py`) and respond services are running.
-*   **Error: "Error generating AI response."**: This may indicate an issue with the Gemini API call. Check your `GEMINI_API_KEY` in the `.env` file and ensure there are no network issues.
+*   **Error: "Error generating AI response."**: This may indicate an issue with the Gemini API call. Ensure your API key is correctly saved in `~/.api-gemini` and there are no network issues.
 
 ## Contributing
 

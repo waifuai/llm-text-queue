@@ -10,30 +10,27 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-# Import configuration (MAX_NEW_TOKENS might be removed or adapted later)
-from config import MAX_NEW_TOKENS # Keep for now, might adjust usage
+# Import configuration
+from config import MAX_NEW_TOKENS, GEMINI_API_KEY
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 # Configure Gemini API
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    logging.error("GEMINI_API_KEY environment variable not set.")
-    # Optionally, raise an error or exit if the key is essential
-    # raise ValueError("Missing GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    logging.error("GEMINI_API_KEY not found in ~/.api-gemini.")
     gemini_model = None # Indicate model is unavailable
 else:
     try:
-        genai.configure(api_key=api_key)
+        genai.configure(api_key=GEMINI_API_KEY)
         gemini_model = genai.GenerativeModel('gemini-2.5-flash-preview-04-17')
         logging.info("Gemini API configured successfully.")
     except Exception as e:
         logging.error(f"Error configuring Gemini API: {e}")
         gemini_model = None
 
-# MAX_NEW_TOKENS from config might be used to set generation config later if needed
-# generation_config = genai.types.GenerationConfig(max_output_tokens=MAX_NEW_TOKENS)
+# Set generation config
+generation_config = genai.types.GenerationConfig(max_output_tokens=MAX_NEW_TOKENS)
 
 # This function predicts the response for a given prompt using the Gemini API.
 def predict_response(prompt: str):
