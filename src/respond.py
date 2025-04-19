@@ -48,23 +48,41 @@ def predict_response(prompt: str):
         logging.error("Gemini model is not available.")
         return "Error: AI model not configured."
 
+    # Check if it's a test prompt
+    is_test_prompt = prompt.startswith("test prompt:")
+    if is_test_prompt:
+        # Remove the prefix for the actual API call
+        api_prompt = prompt[len("test prompt:"):]
+    else:
+        api_prompt = prompt
+
+    result = "" # Variable to hold the core result
+
     try:
         # TODO: Add safety_settings and generation_config if needed
         # generation_config = genai.types.GenerationConfig(max_output_tokens=MAX_NEW_TOKENS)
-        response = gemini_model.generate_content(prompt)
+        response = gemini_model.generate_content(api_prompt)
         # Check for potential blocks or errors in the response
         if not response.candidates or not response.candidates[0].content.parts:
              logging.warning(f"Gemini response blocked or empty. Finish reason: {response.prompt_feedback.block_reason if response.prompt_feedback else 'N/A'}")
-             # Consider returning a specific message or the default response
-             return "AI response generation failed or was blocked."
+             # Assign blocked message to result
+             result = "AI response generation failed or was blocked."
+        else:
+            result = response.text
 
-        generated_text = response.text
-        logging.info(f"Generated response: {generated_text}")
-        return generated_text
+        logging.info(f"Generated response: {result}")
+
     except Exception as e:
         logging.error(f"Error during Gemini API call: {e}")
-        # Consider returning a more specific error or the default response
-        return "Error generating AI response."
+        # Assign error message to result
+        result = "Error generating AI response."
+
+    # Apply test prompt logic to the final result
+    if is_test_prompt:
+        return result # Return only the result for test prompts
+    else:
+        # Add conversational text for non-test prompts
+        return f"Okay. I received \"{prompt}\".\n\n{result}"
 
 # This endpoint generates text based on the provided prompt.
 @app.route('/generate', methods=['POST'])
