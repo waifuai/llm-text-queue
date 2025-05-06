@@ -23,7 +23,7 @@ if not GEMINI_API_KEY:
 else:
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        gemini_model = genai.GenerativeModel('gemini-2.5-pro-preview-03-25')
+        gemini_model = genai.GenerativeModel('gemini-2.5-pro-preview-05-06')
         logging.info("Gemini API configured successfully.")
     except Exception as e:
         logging.error(f"Error configuring Gemini API: {e}")
