@@ -18,7 +18,7 @@ This project provides a simple and efficient text generation service using the G
 
 ## Features
 
-*   Text generation using the Gemini API (`gemini-2.5-pro-preview-05-06` model).
+*   Text generation using the Gemini API (`gemini-2.5-pro` model).
 *   Request queuing using Redis for handling concurrent requests.
 *   Flask API for easy interaction.
 *   Health check endpoint for monitoring service status.
