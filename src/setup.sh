@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # Validate environment
 check_command() {
@@ -9,25 +9,17 @@ check_command() {
     }
 }
 
-check_command python3
-check_command pip3
+check_command python
 check_command redis-server
 
-# Check if virtual environment already exists
-if [ -d "venv" ]; then
-    echo "Virtual environment 'venv' already exists."
-    echo "Please remove it or use a different name if you want to recreate it."
-    exit 1
+# Create uv venv if missing
+if [ ! -d ".venv" ]; then
+    python -m uv venv .venv
+    .venv/Scripts/python.exe -m ensurepip || true
+    .venv/Scripts/python.exe -m pip install uv
 fi
 
-# Create virtual environment
-python3 -m venv venv || {
-    echo "Failed to create virtual environment"
-    exit 1
-}
+# Install dependencies into venv
+.venv/Scripts/python.exe -m uv pip install -r requirements.txt
 
-# Activate virtual environment
-source venv/bin/activate
-
-# Install dependencies
-pip install --user -r requirements.txt
+echo "Setup complete."

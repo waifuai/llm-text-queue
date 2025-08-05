@@ -1,36 +1,35 @@
 # src/respond.py
-# This file contains the core chatbot logic. It loads the distilgpt2 model, processes incoming prompts, and generates responses.
+# Core generation service using Google GenAI SDK.
 
-import os
-import google.generativeai as genai
-from flask import Flask, request, jsonify
 import logging
+from typing import Optional
+
+from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Import configuration
-from config import MAX_NEW_TOKENS, GEMINI_API_KEY
+from config import MAX_NEW_TOKENS, GEMINI_API_KEY, MODEL_NAME
+
+# Import new Google GenAI SDK
+from google import genai
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Configure Gemini API
+# Initialize GenAI Client
+client: Optional[genai.Client] = None
 if not GEMINI_API_KEY:
-    logging.error("GEMINI_API_KEY not found in ~/.api-gemini.")
-    gemini_model = None # Indicate model is unavailable
+    logging.error("API key not found in env or ~/.api-gemini.")
 else:
     try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        gemini_model = genai.GenerativeModel('gemini-2.5-pro')
-        logging.info("Gemini API configured successfully.")
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        logging.info("Google GenAI client initialized successfully.")
     except Exception as e:
-        logging.error(f"Error configuring Gemini API: {e}")
-        gemini_model = None
-
-# Set generation config
-generation_config = genai.types.GenerationConfig(max_output_tokens=MAX_NEW_TOKENS)
+        logging.error(f"Failed to initialize Google GenAI client: {e}")
+        client = None
 
 # This function predicts the response for a given prompt using the Gemini API.
 def predict_response(prompt: str):
@@ -44,57 +43,53 @@ def predict_response(prompt: str):
         The generated text response, or an error message string if generation fails.
     """
     logging.info(f"Received prompt: {prompt}")
-    if not gemini_model:
-        logging.error("Gemini model is not available.")
+    if not client:
+        logging.error("GenAI client is not available.")
         return "Error: AI model not configured."
 
     # Check if it's a test prompt
     is_test_prompt = prompt.startswith("test prompt:")
-    if is_test_prompt:
-        # Remove the prefix for the actual API call
-        api_prompt = prompt[len("test prompt:"):]
-    else:
-        api_prompt = prompt
+    # Strip the prefix for the actual API call
+    api_prompt = prompt[len("test prompt:"):] if is_test_prompt else prompt
 
-    result = "" # Variable to hold the core result
+    result_text = ""
 
     try:
-        # TODO: Add safety_settings and generation_config if needed
-        # generation_config = genai.types.GenerationConfig(max_output_tokens=MAX_NEW_TOKENS)
-        response = gemini_model.generate_content(api_prompt)
-        # Check for potential blocks or errors in the response
-        if not response.candidates or not response.candidates[0].content.parts:
-             logging.warning(f"Gemini response blocked or empty. Finish reason: {response.prompt_feedback.block_reason if response.prompt_feedback else 'N/A'}")
-             # Assign blocked message to result
-             result = "AI response generation failed or was blocked."
-        else:
-            result = response.text
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=api_prompt,
+            generation_config={"max_output_tokens": MAX_NEW_TOKENS},
+        )
 
-        logging.info(f"Generated response: {result}")
+        if not getattr(response, "candidates", None):
+            logging.warning("GenAI response has no candidates.")
+            result_text = "AI response generation failed or was blocked."
+        else:
+            result_text = getattr(response, "text", "") or "AI response generation failed or was blocked."
+
+        logging.info(f"Generated response: {result_text}")
 
     except Exception as e:
-        logging.error(f"Error during Gemini API call: {e}")
-        # Assign error message to result
-        result = "Error generating AI response."
+        logging.error(f"Error during GenAI API call: {e}")
+        result_text = "Error generating AI response."
 
-    # Apply test prompt logic to the final result
     if is_test_prompt:
-        return result # Return only the result for test prompts
+        return result_text
     else:
-        # Add conversational text for non-test prompts
-        return f"Okay. I received \"{prompt}\".\n\n{result}"
+        return f"Okay. I received \"{prompt}\".\n\n{result_text}"
 
 # This endpoint generates text based on the provided prompt.
 @app.route('/generate', methods=['POST'])
 def generate_text_endpoint():
-    prompt = request.json.get('prompt')
+    data = request.get_json(silent=True) or {}
+    prompt = data.get('prompt')
     if not prompt:
         return jsonify({"error": "Missing 'prompt' parameter"}), 400
 
     try:
         response = predict_response(prompt)
         return jsonify({"response": response}), 200
-    except Exception as e:
+    except Exception:
         logging.exception("Error in generate_text_endpoint")
         return jsonify({"error": "Internal server error"}), 500
 

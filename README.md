@@ -1,6 +1,6 @@
 # llm-text-queue
 
-This project provides a simple and efficient text generation service using the Gemini API and a Redis queue for handling requests. It consists of a Flask-based API that exposes endpoints for generating text and checking service health.
+This project provides a simple and efficient text generation service using the Google GenAI SDK (Gemini) and a Redis queue for handling requests. It consists of a Flask-based API that exposes endpoints for generating text and checking service health.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ This project provides a simple and efficient text generation service using the G
 
 ## Features
 
-*   Text generation using the Gemini API (`gemini-2.5-pro` model).
+*   Text generation using Google GenAI (`gemini-2.5-pro` model) via the centralized `genai.Client`.
 *   Request queuing using Redis for handling concurrent requests.
 *   Flask API for easy interaction.
 *   Health check endpoint for monitoring service status.
@@ -27,85 +27,88 @@ This project provides a simple and efficient text generation service using the G
 
 The project consists of three main components:
 
-*   **`respond.py`**: This is the core text generation service. It uses the Gemini API to handle requests to generate text. It exposes a `/generate` endpoint for POST requests containing the prompt.
-*   **`api_queue.py`**: This service acts as a gateway for incoming requests. It receives prompts, queues them using Redis, and then forwards them to `respond.py` for processing. It also exposes a `/generate` endpoint.
-*   **`worker.py`**: This is a Redis worker that listens for jobs on the queue and executes them. This allows `respond.py` to handle multiple requests concurrently without blocking.
+*   `respond.py`: Core text generation service. Uses Google GenAI SDK to handle requests to generate text. Exposes a `/generate` endpoint.
+*   `api_queue.py`: Gateway for incoming requests. Receives prompts, queues them using Redis, and forwards them to `respond.py` for processing. Exposes a `/generate` endpoint.
+*   `worker.py`: Redis worker that listens for jobs on the queue and executes them for concurrency without blocking.
 
-The flow of a request is as follows:
+Request flow:
 
-1.  A client sends a POST request to `/generate` on `api_queue.py`.
-2.  `api_queue.py` adds the request to a Redis queue.
-3.  `worker.py` picks up the request from the queue.
-4.  `worker.py` calls the `call_predict_response` function, which sends a POST request to `/generate` on `respond.py` (via the worker).
-5.  `respond.py` generates the text using the Gemini API and returns it to `api_queue.py` via the worker.
-6.  `api_queue.py` returns the generated text to the client.
+1. Client sends POST `/generate` to `api_queue.py`.
+2. `api_queue.py` enqueues the request via Redis/RQ.
+3. `worker.py` picks up the job and calls the GPU service (`respond.py`).
+4. `respond.py` generates text using the Google GenAI SDK and returns it.
+5. `api_queue.py` returns the generated text to the client.
 
 ## Prerequisites
 
-*   Python 3.7+
+*   Python 3.8+
 *   uv
 *   Redis server (installed and running)
-*   A Gemini API Key saved in `~/.api-gemini`
+*   A Gemini API key provided via environment variables or key file:
+    * Preferred: `GEMINI_API_KEY` or `GOOGLE_API_KEY`
+    * Fallback: `~/.api-gemini` (single-line file)
 
-You can find instructions for installing Redis on your system on the official Redis website: [https://redis.io/docs/getting-started/](https://redis.io/docs/getting-started/)
+See Redis installation: https://redis.io/docs/getting-started/
 
 ## Installation
 
-1.  Clone the repository:
+1. Clone the repository:
 
-    ```bash
-    git clone <YOUR_REPOSITORY_URL>
-    cd llm-text-queue-gpu
-    ```
+```bash
+git clone <YOUR_REPOSITORY_URL>
+cd llm-text-queue-gpu
+```
 
-2.  Create and activate a virtual environment using uv:
+2. Create a virtual environment using uv and install tooling inside:
 
-    ```bash
-    python -m uv venv .venv
-    source .venv/bin/activate  # On Linux/macOS
-    .venv\Scripts\activate  # On Windows
-    ```
+```bash
+python -m uv venv .venv
+.venv/Scripts/python.exe -m ensurepip
+.venv/Scripts/python.exe -m pip install uv
+```
 
-3.  Install dependencies using uv:
+3. Install dependencies using uv:
 
-    ```bash
-    .venv/Scripts/python.exe -m uv pip install -e .[test]
-    ```
+```bash
+.venv/Scripts/python.exe -m uv pip install -r requirements.txt
+```
 
-    Alternatively, you can run the `src/setup.sh` script, which performs steps 2 and 3:
+Alternatively, you can run the setup helper:
 
-    ```bash
-    ./src/setup.sh
-    ```
+```bash
+./src/setup.sh
+```
 
 ## Configuration
 
-1.  Create a `.env` file by copying `.env.example`:
+1. Create a `.env` file by copying `.env.example`:
 
-    ```bash
-    cp .env.example .env
-    ```
+```bash
+cp .env.example .env
+```
 
-2.  Ensure your Gemini API key is saved in a file named `.api-gemini` in your home directory (`~`).
+2. Provide your Gemini API key through one of:
+   * Environment variable `GEMINI_API_KEY` or `GOOGLE_API_KEY`
+   * Fallback file `~/.api-gemini` containing the key on a single line
 
-3.  Modify the `.env` file to set the appropriate values for your environment. The following environment variables are available:
+3. Update `.env` values as needed:
 
-    *   `REDIS_URL`: The URL of the Redis server (default: `redis://localhost:6379`).
-    *   `QUEUE_PORT`: The port for the queue service (default: `5000`).
-    *   `RESPOND_PORT`: The port for the response service (default: `5001`).
-    *   `MAX_NEW_TOKENS`: The maximum number of new tokens for Gemini generation (default: 150).
+* `REDIS_URL`: Redis server URL (default: `redis://localhost:6379`)
+* `QUEUE_PORT`: Queue service port (default: `5000`)
+* `RESPOND_PORT`: Response service port (default: `5001`)
+* `MAX_NEW_TOKENS`: Max new tokens for generation (default: `150`)
 
-    **Note:** The `.env` file should not be committed to the repository for security reasons.
+Note: Do not commit `.env` to source control.
 
 ## Running the Service
 
-Start the services using the `scripts/start-services.sh` script:
+Start all services using:
 
 ```bash
 ./scripts/start-services.sh
 ```
 
-This script will start the Redis server (if not already running), the worker, the queue service, and the response service. The services will run in the background.
+The script ensures the uv venv exists, installs dependencies if needed, then starts Redis (if not running), the worker, the queue service, and the response service. Logs are written to `/tmp/*.log` where applicable.
 
 ## API Documentation
 
@@ -115,7 +118,7 @@ This script will start the Redis server (if not already running), the worker, th
 GET /health
 ```
 
-This endpoint checks the health of the services and returns a 200 OK if all services are running.
+Returns 200 if all services are healthy.
 
 ### Generate Text
 
@@ -128,20 +131,7 @@ Content-Type: application/json
 }
 ```
 
-This endpoint generates text based on the provided prompt. The prompt should be a string.
-
-**Example Request:**
-
-```http
-POST /generate
-Content-Type: application/json
-
-{
-  "prompt": "Hello, how are you?"
-}
-```
-
-**Example Response:**
+Example Response:
 
 ```json
 {
@@ -151,27 +141,30 @@ Content-Type: application/json
 
 ## Testing
 
-The project includes API tests in `tests/test_api.py`, queue tests in `tests/test_queue.py`, and respond tests in `tests/test_respond.py`. You can run all tests using `pytest` with the virtual environment:
+Run the full test suite:
 
 ```bash
-.venv/Scripts/python.exe -m pytest tests
+.venv/Scripts/python.exe -m pytest -q
 ```
+
+## Notes on Google GenAI SDK Migration
+
+* Old approach: `import google.generativeai as genai` and `GenerativeModel(...)`
+* New approach: `from google import genai` then `client = genai.Client(api_key=...)` and `client.models.generate_content(model="gemini-2.5-pro", contents=...)`
+* The model name is centralized in configuration and the API key is resolved from environment variables with a fallback to `~/.api-gemini`.
 
 ## Troubleshooting
 
-*   **Error: "Missing 'prompt' parameter"**: Make sure you are sending a JSON payload with a `prompt` field in your POST request to `/generate`.
-*   **Error: "Service unavailable"**: Check if Redis server, worker, API queue (`api_queue.py`) and respond services are running.
-*   **Error: "Error generating AI response."**: This may indicate an issue with the Gemini API call. Ensure your API key is correctly saved in `~/.api-gemini` and there are no network issues.
+* Missing 'prompt' parameter: Ensure POST body has `{"prompt": "..."}`
+* Service unavailable: Check Redis server, worker, API queue and respond services running; review logs in `/tmp/*.log`
+* Error generating AI response: Verify GEMINI_API_KEY/GOOGLE_API_KEY or `~/.api-gemini` is present and valid; check network connectivity
 
 ## Contributing
 
-1.  Fork the repository.
-2.  Create a new branch for your feature or bug fix.
-3.  Commit your changes.
-4.  Push your branch to your forked repository.
-5.  Create a pull request.
-
-Please adhere to the project's code of conduct.
+1. Fork the repository.
+2. Create a branch for your change.
+3. Commit and push your branch.
+4. Open a pull request.
 
 ## License
 

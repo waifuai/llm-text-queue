@@ -1,13 +1,25 @@
 import os
+from typing import Optional
 
-# Read Gemini API key from ~/.api-gemini
-try:
-    with open(os.path.expanduser('~/.api-gemini'), 'r') as f:
-        GEMINI_API_KEY = f.read().strip()
-except FileNotFoundError:
-    GEMINI_API_KEY = None # Or raise an error, depending on desired behavior
+def _read_key_file(path: str) -> Optional[str]:
+    try:
+        with open(os.path.expanduser(path), 'r') as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return None
+
+# Preferred environment variables for API key
+# Order: GEMINI_API_KEY, GOOGLE_API_KEY, then fallback file ~/.api-gemini
+GEMINI_API_KEY = (
+    os.getenv("GEMINI_API_KEY")
+    or os.getenv("GOOGLE_API_KEY")
+    or _read_key_file("~/.api-gemini")
+)
+
+# Centralized model name for the project
+MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-pro")
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
-# MAX_NEW_TOKENS can be used to configure Gemini generation if needed, e.g.,
-# generation_config = genai.types.GenerationConfig(max_output_tokens=MAX_NEW_TOKENS)
-MAX_NEW_TOKENS = int(os.getenv("MAX_NEW_TOKENS", 150)) # Default increased for LLM
+MAX_NEW_TOKENS = int(os.getenv("MAX_NEW_TOKENS", 150))  # Default increased for LLM
