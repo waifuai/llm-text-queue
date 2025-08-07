@@ -1,6 +1,6 @@
 # llm-text-queue
 
-This project provides a simple and efficient text generation service using the Google GenAI SDK (Gemini) and a Redis queue for handling requests. It consists of a Flask-based API that exposes endpoints for generating text and checking service health.
+This project provides a simple and efficient text generation service using OpenRouter (default) with fallback to Google GenAI (Gemini) and a Redis queue for handling requests. It consists of a Flask-based API that exposes endpoints for generating text and checking service health.
 
 ## Table of Contents
 
@@ -9,6 +9,7 @@ This project provides a simple and efficient text generation service using the G
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Configuration](#configuration)
+- [Provider Selection and Models](#provider-selection-and-models)
 - [Running the Service](#running-the-service)
 - [API Documentation](#api-documentation)
 - [Testing](#testing)
@@ -18,7 +19,7 @@ This project provides a simple and efficient text generation service using the G
 
 ## Features
 
-*   Text generation using Google GenAI (`gemini-2.5-pro` model) via the centralized `genai.Client`.
+*   Text generation using OpenRouter by default, with Gemini fallback.
 *   Request queuing using Redis for handling concurrent requests.
 *   Flask API for easy interaction.
 *   Health check endpoint for monitoring service status.
@@ -27,7 +28,7 @@ This project provides a simple and efficient text generation service using the G
 
 The project consists of three main components:
 
-*   `respond.py`: Core text generation service. Uses Google GenAI SDK to handle requests to generate text. Exposes a `/generate` endpoint.
+*   `respond.py`: Core text generation service. Uses OpenRouter (default) or Gemini to handle requests to generate text. Exposes a `/generate` endpoint.
 *   `api_queue.py`: Gateway for incoming requests. Receives prompts, queues them using Redis, and forwards them to `respond.py` for processing. Exposes a `/generate` endpoint.
 *   `worker.py`: Redis worker that listens for jobs on the queue and executes them for concurrency without blocking.
 
@@ -36,7 +37,7 @@ Request flow:
 1. Client sends POST `/generate` to `api_queue.py`.
 2. `api_queue.py` enqueues the request via Redis/RQ.
 3. `worker.py` picks up the job and calls the GPU service (`respond.py`).
-4. `respond.py` generates text using the Google GenAI SDK and returns it.
+4. `respond.py` generates text using the configured provider and returns it.
 5. `api_queue.py` returns the generated text to the client.
 
 ## Prerequisites
@@ -44,9 +45,9 @@ Request flow:
 *   Python 3.8+
 *   uv
 *   Redis server (installed and running)
-*   A Gemini API key provided via environment variables or key file:
-    * Preferred: `GEMINI_API_KEY` or `GOOGLE_API_KEY`
-    * Fallback: `~/.api-gemini` (single-line file)
+*   Credentials:
+    * OpenRouter: `OPENROUTER_API_KEY` or `~/.api-openrouter` (single-line file)
+    * Gemini: `GEMINI_API_KEY` or `GOOGLE_API_KEY`, fallback `~/.api-gemini` (single-line file)
 
 See Redis installation: https://redis.io/docs/getting-started/
 
@@ -87,11 +88,7 @@ Alternatively, you can run the setup helper:
 cp .env.example .env
 ```
 
-2. Provide your Gemini API key through one of:
-   * Environment variable `GEMINI_API_KEY` or `GOOGLE_API_KEY`
-   * Fallback file `~/.api-gemini` containing the key on a single line
-
-3. Update `.env` values as needed:
+2. Update `.env` values as needed:
 
 * `REDIS_URL`: Redis server URL (default: `redis://localhost:6379`)
 * `QUEUE_PORT`: Queue service port (default: `5000`)
@@ -99,6 +96,26 @@ cp .env.example .env
 * `MAX_NEW_TOKENS`: Max new tokens for generation (default: `150`)
 
 Note: Do not commit `.env` to source control.
+
+## Provider Selection and Models
+
+Default provider is OpenRouter. You can switch via environment variable:
+
+- `PROVIDER=openrouter` (default) uses OpenRouter with model resolved from `OPENROUTER_MODEL_NAME` env or `~/.model-openrouter` (fallback to `openrouter/horizon-beta`).
+- `PROVIDER=gemini` uses Gemini with model resolved from `GEMINI_MODEL_NAME` env or `~/.model-gemini` (fallback to `gemini-2.5-pro`).
+
+Credentials:
+
+- OpenRouter: `OPENROUTER_API_KEY` env or `~/.api-openrouter` file containing the key on a single line.
+- Gemini: `GEMINI_API_KEY` or `GOOGLE_API_KEY` env, fallback `~/.api-gemini`.
+
+Runtime behavior:
+
+- The response service calls OpenRouter by default; on failure it falls back to Gemini if configured. If `PROVIDER=gemini`, the order is reversed.
+
+Model files:
+
+- `~/.model-openrouter` and `~/.model-gemini` should contain only the model name string.
 
 ## Running the Service
 
@@ -147,17 +164,11 @@ Run the full test suite:
 .venv/Scripts/python.exe -m pytest -q
 ```
 
-## Notes on Google GenAI SDK Migration
-
-* Old approach: `import google.generativeai as genai` and `GenerativeModel(...)`
-* New approach: `from google import genai` then `client = genai.Client(api_key=...)` and `client.models.generate_content(model="gemini-2.5-pro", contents=...)`
-* The model name is centralized in configuration and the API key is resolved from environment variables with a fallback to `~/.api-gemini`.
-
 ## Troubleshooting
 
 * Missing 'prompt' parameter: Ensure POST body has `{"prompt": "..."}`
 * Service unavailable: Check Redis server, worker, API queue and respond services running; review logs in `/tmp/*.log`
-* Error generating AI response: Verify GEMINI_API_KEY/GOOGLE_API_KEY or `~/.api-gemini` is present and valid; check network connectivity
+* Error generating AI response: Verify OpenRouter or Gemini credentials are present and valid; check network connectivity
 
 ## Contributing
 

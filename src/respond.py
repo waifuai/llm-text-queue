@@ -1,5 +1,5 @@
 # src/respond.py
-# Core generation service using Google GenAI SDK.
+# Core generation service with OpenRouter default provider and Gemini fallback.
 
 import logging
 from typing import Optional
@@ -11,67 +11,73 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import configuration
-from config import MAX_NEW_TOKENS, GEMINI_API_KEY, MODEL_NAME
+from config import MAX_NEW_TOKENS, GEMINI_API_KEY, MODEL_NAME, PROVIDER
 
-# Import new Google GenAI SDK
+# OpenRouter provider module
+from provider_openrouter import generate_with_openrouter
+
+# Google GenAI SDK (fallback)
 from google import genai
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Initialize GenAI Client
-client: Optional[genai.Client] = None
+# Initialize Gemini client (fallback path)
+gemini_client: Optional[genai.Client] = None
 if not GEMINI_API_KEY:
-    logging.error("API key not found in env or ~/.api-gemini.")
+    logging.info("Gemini API key not found in env or ~/.api-gemini; Gemini fallback disabled.")
 else:
     try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
+        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
         logging.info("Google GenAI client initialized successfully.")
     except Exception as e:
         logging.error(f"Failed to initialize Google GenAI client: {e}")
-        client = None
+        gemini_client = None
 
-# This function predicts the response for a given prompt using the Gemini API.
-def predict_response(prompt: str):
+def _generate_with_gemini(prompt: str) -> str:
+    if not gemini_client:
+        return "Error: AI model not configured."
+    try:
+        response = gemini_client.models.generate_content(
+            model=MODEL_NAME,
+            contents=prompt,
+            generation_config={"max_output_tokens": MAX_NEW_TOKENS},
+        )
+        if not getattr(response, "candidates", None):
+            return "AI response generation failed or was blocked."
+        return getattr(response, "text", "") or "AI response generation failed or was blocked."
+    except Exception as e:
+        logging.error(f"Error during GenAI API call: {e}")
+        return "Error generating AI response."
+
+# This function predicts the response for a given prompt using OpenRouter by default, with Gemini fallback.
+def predict_response(prompt: str) -> str:
     """
-    Generates a response for a given prompt using the configured Gemini model.
-
-    Args:
-        prompt: The input prompt string.
+    Generates a response for a given prompt using the configured provider/model.
 
     Returns:
         The generated text response, or an error message string if generation fails.
     """
     logging.info(f"Received prompt: {prompt}")
-    if not client:
-        logging.error("GenAI client is not available.")
-        return "Error: AI model not configured."
 
-    # Check if it's a test prompt
+    # Check if it's a test prompt; strip prefix before model call but return bare text in tests
     is_test_prompt = prompt.startswith("test prompt:")
-    # Strip the prefix for the actual API call
     api_prompt = prompt[len("test prompt:"):] if is_test_prompt else prompt
 
     result_text = ""
 
-    try:
-        response = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=api_prompt,
-            generation_config={"max_output_tokens": MAX_NEW_TOKENS},
-        )
-
-        if not getattr(response, "candidates", None):
-            logging.warning("GenAI response has no candidates.")
-            result_text = "AI response generation failed or was blocked."
-        else:
-            result_text = getattr(response, "text", "") or "AI response generation failed or was blocked."
-
-        logging.info(f"Generated response: {result_text}")
-
-    except Exception as e:
-        logging.error(f"Error during GenAI API call: {e}")
-        result_text = "Error generating AI response."
+    if PROVIDER == "openrouter":
+        # Primary: OpenRouter
+        result_text = generate_with_openrouter(api_prompt, model_name=MODEL_NAME, max_new_tokens=MAX_NEW_TOKENS) or ""
+        if not result_text:
+            logging.warning("OpenRouter generation failed; attempting Gemini fallback.")
+            result_text = _generate_with_gemini(api_prompt)
+    else:
+        # Primary: Gemini
+        result_text = _generate_with_gemini(api_prompt)
+        if not result_text:
+            logging.warning("Gemini generation failed; attempting OpenRouter fallback.")
+            result_text = generate_with_openrouter(api_prompt, model_name=MODEL_NAME, max_new_tokens=MAX_NEW_TOKENS) or ""
 
     if is_test_prompt:
         return result_text
