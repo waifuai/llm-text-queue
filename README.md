@@ -101,7 +101,7 @@ Note: Do not commit `.env` to source control.
 
 Default provider is OpenRouter. You can switch via environment variable:
 
-- `PROVIDER=openrouter` (default) uses OpenRouter with model resolved from `OPENROUTER_MODEL_NAME` env or `~/.model-openrouter` (fallback to `openrouter/horizon-beta`).
+- `PROVIDER=openrouter` (default) uses OpenRouter with model resolved from `OPENROUTER_MODEL_NAME` env or `~/.model-openrouter` (fallback to `deepseek/deepseek-chat-v3-0324:free`).
 - `PROVIDER=gemini` uses Gemini with model resolved from `GEMINI_MODEL_NAME` env or `~/.model-gemini` (fallback to `gemini-2.5-pro`).
 
 Credentials:
