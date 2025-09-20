@@ -1,3 +1,11 @@
+"""
+LLM Text Queue GPU - Response Generation Service
+This module provides the core text generation service with multi-provider support,
+featuring OpenRouter as the primary provider and Gemini as fallback. It includes
+prompt validation, sanitization, rate limiting, error handling, and health monitoring.
+The service handles both direct generation requests and queue-based processing,
+with comprehensive logging and provider failover capabilities.
+"""
 # src/respond.py
 # Core text generation service with OpenRouter primary provider and Gemini fallback.
 

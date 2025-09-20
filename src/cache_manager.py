@@ -1,6 +1,10 @@
 # src/cache_manager.py
 """
-Response caching system for LLM text generation.
+LLM Text Queue GPU - Response Caching System
+This module provides a comprehensive caching system for LLM responses using Redis as the backend.
+It manages cache keys, serialization, TTL (time-to-live), cache statistics, and provides
+both class-based and functional interfaces for caching operations. The system includes
+cache hit/miss tracking, cache invalidation, and detailed statistics reporting.
 """
 
 import hashlib

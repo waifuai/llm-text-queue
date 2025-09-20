@@ -1,6 +1,11 @@
 # src/redis_manager.py
 """
-Redis connection management with connection pooling and error handling.
+LLM Text Queue GPU - Redis Connection Management
+This module provides robust Redis connection management with connection pooling,
+error handling, and automatic reconnection capabilities. It manages Redis clients,
+RQ queues, connection health monitoring, and provides both class-based and functional
+interfaces for Redis operations. The system includes comprehensive health checks,
+graceful error recovery, and detailed logging for debugging and monitoring.
 """
 
 import redis

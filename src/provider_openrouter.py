@@ -1,3 +1,10 @@
+"""
+LLM Text Queue GPU - OpenRouter Provider
+This module provides integration with the OpenRouter API for text generation services.
+It handles API key resolution, request formatting, HTTP communication, and response
+processing for the OpenRouter chat completions endpoint. The module includes error
+handling, logging, and supports configurable models, token limits, and timeouts.
+"""
 # src/provider_openrouter.py
 from __future__ import annotations
 

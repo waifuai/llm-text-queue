@@ -1,3 +1,11 @@
+"""
+LLM Text Queue GPU - RQ Worker Service
+This module provides the RQ (Redis Queue) worker that processes text generation jobs
+from the queue system. It uses the Redis manager for robust connection handling,
+includes connection pooling, error recovery, and graceful shutdown capabilities.
+The worker listens to the default queue and processes jobs with comprehensive
+logging and monitoring for production reliability.
+"""
 import os
 import logging
 from rq import Worker

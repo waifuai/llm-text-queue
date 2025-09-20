@@ -1,3 +1,11 @@
+"""
+LLM Text Queue GPU - Main Application Service
+This module serves as the main entry point for the consolidated LLM text queue system,
+providing a unified Flask application that integrates all services including direct
+and queued text generation, caching, rate limiting, health monitoring, and metrics.
+It supports multiple providers (OpenRouter, Gemini) and includes comprehensive
+error handling, configuration validation, and Redis-based queue management.
+"""
 # src/main.py
 # Main application entry point that consolidates all services into a single Flask app.
 

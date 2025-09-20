@@ -1,3 +1,7 @@
+# LLM Text Queue GPU - Environment Setup Script
+# This script validates system dependencies, creates a virtual environment using uv,
+# and installs project dependencies from requirements.txt to prepare the environment
+# for running the LLM text queue system.
 #!/bin/bash
 set -euo pipefail
 

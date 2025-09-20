@@ -1,3 +1,9 @@
+"""
+LLM Text Queue GPU - Queue API Service
+This module provides a Flask-based API service that receives text generation prompts,
+queues them using Redis, and forwards them to the response service for processing.
+It includes rate limiting, input validation, sanitization, and comprehensive health checks.
+"""
 # src/api_queue.py
 # Queue service that receives prompts, queues them using Redis, and forwards them to respond.py for processing.
 

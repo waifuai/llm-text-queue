@@ -1,3 +1,7 @@
+# LLM Text Queue GPU - Service Startup Script
+# This script initializes and starts all necessary services for the LLM text queue system.
+# It handles virtual environment setup, Redis server initialization, worker processes,
+# and the main API service, with optional legacy service support for backward compatibility.
 #!/bin/bash
 set -euo pipefail
 

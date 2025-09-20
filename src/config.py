@@ -1,3 +1,10 @@
+"""
+LLM Text Queue GPU - Configuration Management
+This module manages all configuration settings for the LLM text queue system, including
+API keys, provider selection, model configuration, port settings, and Redis connection.
+It supports multiple providers (OpenRouter, Gemini), environment-specific settings,
+and includes comprehensive validation and logging of configuration parameters.
+"""
 import os
 import sys
 from typing import Optional, Dict, Any
