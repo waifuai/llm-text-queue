@@ -1,18 +1,16 @@
 """
 LLM Text Queue GPU - Response Generation Service
-This module provides the core text generation service with multi-provider support,
-featuring OpenRouter as the primary provider and Gemini as fallback. It includes
-prompt validation, sanitization, rate limiting, error handling, and health monitoring.
+This module provides the core text generation service using OpenRouter,
+featuring prompt validation, sanitization, rate limiting, error handling, and health monitoring.
 The service handles both direct generation requests and queue-based processing,
-with comprehensive logging and provider failover capabilities.
+with comprehensive logging and request handling capabilities.
 """
 # src/respond.py
-# Core text generation service with OpenRouter primary provider and Gemini fallback.
+# Core text generation service with OpenRouter provider.
 
 import logging
 import os
 import re
-from typing import Optional
 
 from flask import Flask, request, jsonify
 from flask_limiter import Limiter
@@ -23,13 +21,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import configuration
-from config import MAX_NEW_TOKENS, GEMINI_API_KEY, MODEL_NAME, PROVIDER, RESPOND_PORT
+from config import MAX_NEW_TOKENS, MODEL_NAME, RESPOND_PORT
 
 # Provider modules
 from provider_openrouter import generate_with_openrouter
-
-# Google GenAI SDK (fallback)
-from google import genai
 
 app = Flask(__name__)
 
@@ -47,59 +42,9 @@ limiter = Limiter(
     default_limits=["200 per day", "50 per hour"]
 )
 
-# Initialize Gemini client (fallback path)
-gemini_client: Optional[genai.Client] = None
-if not GEMINI_API_KEY:
-    logger.info("Gemini API key not found in env or ~/.api-gemini; Gemini fallback disabled.")
-else:
-    try:
-        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-        logger.info("Google GenAI client initialized successfully.")
-    except Exception as e:
-        logger.error(f"Failed to initialize Google GenAI client: {e}")
-        gemini_client = None
-
-def _generate_with_gemini(prompt: str) -> str:
-    """
-    Generate text using Google's Gemini API.
-
-    Args:
-        prompt: The input prompt for generation
-
-    Returns:
-        Generated text or error message
-    """
-    if not gemini_client:
-        logger.error("Gemini client not initialized")
-        return "Error: AI model not configured."
-
-    try:
-        logger.info(f"Calling Gemini API with model: {MODEL_NAME}")
-        response = gemini_client.models.generate_content(
-            model=MODEL_NAME,
-            contents=prompt,
-            generation_config={"max_output_tokens": MAX_NEW_TOKENS},
-        )
-
-        if not getattr(response, "candidates", None):
-            logger.warning("Gemini API returned no candidates")
-            return "AI response generation failed or was blocked."
-
-        text = getattr(response, "text", "")
-        if not text:
-            logger.warning("Gemini API returned empty text")
-            return "AI response generation failed or was blocked."
-
-        logger.info("Successfully generated response with Gemini")
-        return text.strip()
-
-    except Exception as e:
-        logger.error(f"Error during Gemini API call: {e}", exc_info=True)
-        return "Error generating AI response."
-
 def predict_response(prompt: str) -> str:
     """
-    Generate a response for the given prompt using configured provider with fallback.
+    Generate a response for the given prompt using OpenRouter.
 
     Args:
         prompt: The input prompt for text generation
@@ -113,37 +58,17 @@ def predict_response(prompt: str) -> str:
     is_test_prompt = prompt.startswith("test prompt:")
     api_prompt = prompt[len("test prompt:"):] if is_test_prompt else prompt
 
-    result_text = ""
-
     try:
-        if PROVIDER == "openrouter":
-            # Primary: OpenRouter
-            logger.info("Attempting OpenRouter generation")
-            result_text = generate_with_openrouter(
-                api_prompt,
-                model_name=MODEL_NAME,
-                max_new_tokens=MAX_NEW_TOKENS
-            ) or ""
-
-            if not result_text:
-                logger.warning("OpenRouter generation failed; attempting Gemini fallback")
-                result_text = _generate_with_gemini(api_prompt)
-        else:
-            # Primary: Gemini
-            logger.info("Attempting Gemini generation")
-            result_text = _generate_with_gemini(api_prompt)
-
-            if not result_text:
-                logger.warning("Gemini generation failed; attempting OpenRouter fallback")
-                result_text = generate_with_openrouter(
-                    api_prompt,
-                    model_name=MODEL_NAME,
-                    max_new_tokens=MAX_NEW_TOKENS
-                ) or ""
+        logger.info("Attempting OpenRouter generation")
+        result_text = generate_with_openrouter(
+            api_prompt,
+            model_name=MODEL_NAME,
+            max_new_tokens=MAX_NEW_TOKENS
+        ) or ""
 
         if not result_text:
-            logger.error("All generation providers failed")
-            return "Error: Unable to generate response from any provider."
+            logger.error("OpenRouter generation failed")
+            return "Error: Unable to generate response."
 
         # For test prompts, return bare result
         if is_test_prompt:
@@ -217,10 +142,7 @@ def health_check():
     return jsonify({
         "status": "healthy",
         "service": "response",
-        "providers": {
-            "openrouter": "configured" if PROVIDER == "openrouter" else "fallback",
-            "gemini": "configured" if gemini_client else "disabled"
-        }
+        "provider": "openrouter"
     }), 200
 
 

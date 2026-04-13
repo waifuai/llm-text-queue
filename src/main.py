@@ -3,7 +3,7 @@ LLM Text Queue GPU - Main Application Service
 This module serves as the main entry point for the consolidated LLM text queue system,
 providing a unified Flask application that integrates all services including direct
 and queued text generation, caching, rate limiting, health monitoring, and metrics.
-It supports multiple providers (OpenRouter, Gemini) and includes comprehensive
+It uses OpenRouter for text generation and includes comprehensive
 error handling, configuration validation, and Redis-based queue management.
 """
 # src/main.py
@@ -22,7 +22,7 @@ load_dotenv()
 
 # Import configuration
 from config import (
-    MAX_NEW_TOKENS, GEMINI_API_KEY, MODEL_NAME, PROVIDER,
+    MAX_NEW_TOKENS, MODEL_NAME, PROVIDER,
     QUEUE_PORT, RESPOND_PORT, MAIN_PORT, REDIS_URL,
     validate_configuration, log_configuration
 )
@@ -38,7 +38,6 @@ from api_queue import (
 )
 from respond import predict_response, validate_generation_prompt
 from provider_openrouter import generate_with_openrouter
-from google import genai
 
 # Redis connection management
 redis_conn = None
@@ -60,16 +59,6 @@ limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"]
 )
-
-# Initialize Gemini client (fallback path)
-gemini_client = None
-if GEMINI_API_KEY:
-    try:
-        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-        logger.info("Google GenAI client initialized successfully.")
-    except Exception as e:
-        logger.error(f"Failed to initialize Google GenAI client: {e}")
-        gemini_client = None
 
 
 @app.route('/')
@@ -122,12 +111,7 @@ def health_check():
             health_status["details"] = {"redis_error": redis_health.get('error')}
 
         # Check generation providers
-        if PROVIDER == "openrouter":
-            health_status["services"]["generation"] = True
-        elif gemini_client:
-            health_status["services"]["generation"] = True
-        else:
-            health_status["overall"] = False
+        health_status["services"]["generation"] = True
 
     except Exception as e:
         logger.error(f"Health check error: {e}")

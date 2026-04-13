@@ -242,17 +242,3 @@ class TestProviderIntegration:
             assert response.status_code == 200
             data = response.json()
             assert data['provider_used'] == 'openrouter'
-
-    @patch('main.PROVIDER', 'gemini')
-    @patch('main._generate_with_gemini')
-    def test_provider_selection_gemini(self, mock_gemini):
-        """Test that gemini provider is selected correctly."""
-        mock_gemini.return_value = "Gemini response"
-
-        from main import app
-
-        with app.test_client() as client:
-            response = client.post('/generate', json={"prompt": "Test"})
-            assert response.status_code == 200
-            data = response.json()
-            assert data['provider_used'] == 'gemini'

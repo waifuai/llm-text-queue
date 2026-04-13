@@ -43,7 +43,7 @@ class CacheManager:
 
         Args:
             prompt: The input prompt
-            provider: The provider name (openrouter, gemini, etc.)
+            provider: The provider name (openrouter)
             model: The model name
 
         Returns:

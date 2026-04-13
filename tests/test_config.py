@@ -13,7 +13,6 @@ from config import (
     get_configuration_summary,
     get_environment_name,
     load_environment_config,
-    GEMINI_API_KEY,
     PROVIDER,
     MODEL_NAME,
     REDIS_URL,
@@ -105,7 +104,7 @@ class TestConfig:
         mock_read_file.return_value = "test_api_key"
         is_valid, issues = validate_configuration()
         assert is_valid is False
-        assert any("PROVIDER must be either" in issue for issue in issues)
+        assert any("PROVIDER must be 'openrouter'" in issue for issue in issues)
 
     @patch.dict(os.environ, {
         'PROVIDER': 'openrouter',
