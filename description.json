@@ -1,6 +1,0 @@
-{
-  "title": "Efficient LLM Text Queue Service",
-  "link": "./llm-text-queue-gpu",
-  "description": "Discover llm-text-queue, a streamlined Flask-based API for high-performance text generation using OpenRouter, enhanced by Redis queuing for seamless concurrent request handling 📝. This project excels in scalability, featuring a modular architecture: api_queue.py as the entry gateway, worker.py for non-blocking job execution, and respond.py for AI-powered responses via configurable providers and models. Effortlessly integrate into applications with endpoints for text generation and health monitoring, supporting max token limits and automatic failover for reliability 🔄. Setup is a breeze with uv virtual environments, setup scripts, and .env configuration— prerequisites include Python 3.8+, Redis, and API keys. Includes pytest suite for testing, troubleshooting guides, and MIT-0 licensing for community contributions. Perfect for developers building robust AI services without bottlenecks! (132 words)",
-  "description_small": "Effortless text generation service! 🚀 Powered by OpenRouter (default) with Gemini fallback 📝. Handles concurrent requests via Redis queue for smooth performance 🛡️. Flask API with /generate & /health endpoints 🔧. Quick setup with uv & easy testing! 🧪"
-}
