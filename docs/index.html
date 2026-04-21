@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>llm-text-queue-gpu Documentation</title>
+<style>
+
+:root {
+  --bg: #0d1117;
+  --card-bg: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+  --accent: #58a6ff;
+  --accent2: #7ee787;
+  --accent3: #d2a8ff;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 2rem; }
+.container { max-width: 1100px; margin: 0 auto; }
+header { text-align: center; margin-bottom: 3rem; padding: 2rem 0; border-bottom: 1px solid var(--border); }
+header h1 { font-size: 2.5rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent3)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.5rem; }
+header p { color: var(--text-muted); font-size: 1.1rem; }
+section { margin-bottom: 2.5rem; }
+h2 { font-size: 1.4rem; margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; gap: 0.5rem; }
+.count { font-size: 0.85rem; color: var(--text-muted); font-weight: 400; }
+.section-desc { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
+.link-list { display: flex; flex-direction: column; gap: 0.25rem; }
+.link-list a { color: var(--accent); text-decoration: none; padding: 0.4rem 0.75rem; border-radius: 6px; transition: background 0.15s; font-size: 0.95rem; }
+.link-list a:hover { background: var(--card-bg); text-decoration: underline; }
+footer { text-align: center; color: var(--text-muted); font-size: 0.8rem; padding-top: 2rem; border-top: 1px solid var(--border); margin-top: 2rem; }
+
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>Llm Text Queue Gpu</h1>
+<p>Documentation hub for AI agents and developers</p>
+</header>
+# llm-text-queue
+
+This project provides a simple and efficient text generation service using OpenRouter with a Redis queue for handling requests. It consists of a Flask-based API that exposes endpoints for generating text and checking service health.
+
+## Table of Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Provider Selection and Models](#provider-selection-and-models)
+- [Running the Service](#running-the-service)
+- [API Documentation](#api-documentation)
+- [Testing](#testing)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Features
+
+*   Text generation using OpenRouter.
+*   Request queuing using Redis for handling concurrent requests.
+*   Flask API for easy interaction.
+*   Health check endpoint for monitoring service status.
+
+## Architecture
+
+The project consists of three main components:
+
+*   `respond.py`: Core text generation service. Uses OpenRouter to handle requests to generate text. Exposes a `/generate` endpoint.
+*   `api_queue.py`: Gateway for incoming requests. Receives prompts, queues them using Redis, and forwards them to `respond.py` for processing. Exposes a `/generate` endpoint.
+*   `worker.py`: Redis worker that listens for jobs on the queue and executes them for concurrency without blocking.
+
+Request flow:
+
+1. Client sends POST `/generate` to `api_queue.py`.
+2. `api_queue.py` enqueues the request via Redis/RQ.
+3. `worker.py` picks up the job and calls the GPU service (`respond.py`).
+4. `respond.py` generates text using OpenRouter and returns it.
+5. `api_queue.py` returns the generated text to the client.
+
+## Prerequisites
+
+*   Python 3.8+
+*   uv
+*   Redis server (installed and running)
+*   Credentials:
+    * OpenRouter: `OPENROUTER_API_KEY` or `~/.api-openrouter` (single-line file)
+
+See Redis installation: https://redis.io/docs/getting-started/
+
+## Installation
+
+1. Clone the repository:
+
+```bash
+git clone <YOUR_REPOSITORY_URL>
+cd llm-text-queue-gpu
+```
+
+2. Create a virtual environment using uv and install tooling inside:
+
+```bash
+python -m uv venv .venv
+.venv/Scripts/python.exe -m ensurepip
+.venv/Scripts/python.exe -m pip install uv
+```
+
+3. Install dependencies using uv:
+
+```bash
+.venv/Scripts/python.exe -m uv pip install -r requirements.txt
+```
+
+Alternatively, you can run the setup helper:
+
+```bash
+./src/setup.sh
+```
+
+## Configuration
+
+1. Create a `.env` file by copying `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+2. Update `.env` values as needed:
+
+* `REDIS_URL`: Redis server URL (default: `redis://localhost:6379`)
+* `QUEUE_PORT`: Queue service port (default: `5000`)
+* `RESPOND_PORT`: Response service port (default: `5001`)
+* `MAX_NEW_TOKENS`: Max new tokens for generation (default: `150`)
+
+Note: Do not commit `.env` to source control.
+
+## Provider Selection and Models
+
+The service uses OpenRouter exclusively. Model is resolved from `OPENROUTER_MODEL_NAME` env or `~/.model-openrouter` (fallback to `openrouter/free`).
+
+Credentials:
+
+* `OPENROUTER_API_KEY` env or `~/.api-openrouter` file containing the key on a single line.
+
+## Running the Service
+
+Start all services using:
+
+```bash
+./scripts/start-services.sh
+```
+
+The script ensures the uv venv exists, installs dependencies if needed, then starts Redis (if not running), the worker, the queue service, and the response service. Logs are written to `/tmp/*.log` where applicable.
+
+## API Documentation
+
+### Health Check
+
+```http
+GET /health
+```
+
+Returns 200 if all services are healthy.
+
+### Generate Text
+
+```http
+POST /generate
+Content-Type: application/json
+
+{
+  "prompt": "Your input text here"
+}
+```
+
+Example Response:
+
+```json
+{
+  "response": "I am doing well, thank you for asking."
+}
+```
+
+## Testing
+
+Run the full test suite:
+
+```bash
+.venv/Scripts/python.exe -m pytest -q
+```
+
+## Troubleshooting
+
+* Missing 'prompt' parameter: Ensure POST body has `{"prompt": "..."}`
+* Service unavailable: Check Redis server, worker, API queue and respond services running; review logs in `/tmp/*.log`
+* Error generating AI response: Verify OpenRouter credentials are present and valid; check network connectivity
+
+## Contributing
+
+1. Fork the repository.
+2. Create a branch for your change.
+3. Commit and push your branch.
+4. Open a pull request.
+
+## License
+
+This project is licensed under the MIT-0 License - see the [LICENSE](LICENSE) file for details.
+
+
+<footer>
+<p>Generated for GitHub Pages</p>
+</footer>
+</div>
+</body>
+</html>
