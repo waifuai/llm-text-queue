@@ -39,11 +39,11 @@ footer { text-align: center; color: var(--text-muted); font-size: 0.8rem; paddin
 <h1>Llm Text Queue Gpu</h1>
 <p>Documentation hub for AI agents and developers</p>
 </header>
-# llm-text-queue
+<h1>llm-text-queue</h1>
 
 This project provides a simple and efficient text generation service using OpenRouter with a Redis queue for handling requests. It consists of a Flask-based API that exposes endpoints for generating text and checking service health.
 
-## Table of Contents
+<h2>Table of Contents</h2>
 
 - [Features](#features)
 - [Architecture](#architecture)
@@ -58,14 +58,14 @@ This project provides a simple and efficient text generation service using OpenR
 - [Contributing](#contributing)
 - [License](#license)
 
-## Features
+<h2>Features</h2>
 
 *   Text generation using OpenRouter.
 *   Request queuing using Redis for handling concurrent requests.
 *   Flask API for easy interaction.
 *   Health check endpoint for monitoring service status.
 
-## Architecture
+<h2>Architecture</h2>
 
 The project consists of three main components:
 
@@ -81,7 +81,7 @@ Request flow:
 4. `respond.py` generates text using OpenRouter and returns it.
 5. `api_queue.py` returns the generated text to the client.
 
-## Prerequisites
+<h2>Prerequisites</h2>
 
 *   Python 3.8+
 *   uv
@@ -91,7 +91,7 @@ Request flow:
 
 See Redis installation: https://redis.io/docs/getting-started/
 
-## Installation
+<h2>Installation</h2>
 
 1. Clone the repository:
 
@@ -120,7 +120,7 @@ Alternatively, you can run the setup helper:
 ./src/setup.sh
 ```
 
-## Configuration
+<h2>Configuration</h2>
 
 1. Create a `.env` file by copying `.env.example`:
 
@@ -137,7 +137,7 @@ cp .env.example .env
 
 Note: Do not commit `.env` to source control.
 
-## Provider Selection and Models
+<h2>Provider Selection and Models</h2>
 
 The service uses OpenRouter exclusively. Model is resolved from `OPENROUTER_MODEL_NAME` env or `~/.model-openrouter` (fallback to `openrouter/free`).
 
@@ -145,7 +145,7 @@ Credentials:
 
 * `OPENROUTER_API_KEY` env or `~/.api-openrouter` file containing the key on a single line.
 
-## Running the Service
+<h2>Running the Service</h2>
 
 Start all services using:
 
@@ -155,9 +155,9 @@ Start all services using:
 
 The script ensures the uv venv exists, installs dependencies if needed, then starts Redis (if not running), the worker, the queue service, and the response service. Logs are written to `/tmp/*.log` where applicable.
 
-## API Documentation
+<h2>API Documentation</h2>
 
-### Health Check
+<h3>Health Check</h3>
 
 ```http
 GET /health
@@ -165,7 +165,7 @@ GET /health
 
 Returns 200 if all services are healthy.
 
-### Generate Text
+<h3>Generate Text</h3>
 
 ```http
 POST /generate
@@ -184,7 +184,7 @@ Example Response:
 }
 ```
 
-## Testing
+<h2>Testing</h2>
 
 Run the full test suite:
 
@@ -192,20 +192,20 @@ Run the full test suite:
 .venv/Scripts/python.exe -m pytest -q
 ```
 
-## Troubleshooting
+<h2>Troubleshooting</h2>
 
 * Missing 'prompt' parameter: Ensure POST body has `{"prompt": "..."}`
 * Service unavailable: Check Redis server, worker, API queue and respond services running; review logs in `/tmp/*.log`
 * Error generating AI response: Verify OpenRouter credentials are present and valid; check network connectivity
 
-## Contributing
+<h2>Contributing</h2>
 
 1. Fork the repository.
 2. Create a branch for your change.
 3. Commit and push your branch.
 4. Open a pull request.
 
-## License
+<h2>License</h2>
 
 This project is licensed under the MIT-0 License - see the [LICENSE](LICENSE) file for details.
 
