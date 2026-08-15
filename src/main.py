@@ -231,6 +231,10 @@ def queue_generate_text():
             "method": "queued"
         }), 200
 
+    except Exception as e:
+        logger.error(f"Error in queue generation: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
 
 @app.route('/cache/stats')
 def cache_stats():
